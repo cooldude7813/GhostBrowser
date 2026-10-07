@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: ghost-browser-android-foundation
@@ -37,17 +38,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ghost-git-cache
-          key: \${{ runner.os }}-ghost-browser-chromium-git-v3
+          key: ${{ runner.os }}-ghost-browser-chromium-git-v3
           restore-keys: |
-            \${{ runner.os }}-ghost-browser-chromium-git-v3-
+            ${{ runner.os }}-ghost-browser-chromium-git-v3-
 
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:
           path: .pnpm-store
-          key: \${{ runner.os }}-ghost-browser-pnpm-v2
+          key: ${{ runner.os }}-ghost-browser-pnpm-v2
           restore-keys: |
-            \${{ runner.os }}-ghost-browser-pnpm-v2-
+            ${{ runner.os }}-ghost-browser-pnpm-v2-
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -102,20 +103,22 @@ jobs:
           find src/out -type f -name '*.apk' -print
           test -n "$(find src/out -type f -name '*.apk' -print -quit)"
 
-      - name: Upload Android Debug APK
+      - name: Remove previous Ghost Browser APK artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"             --jq '.artifacts[] | select(.name == "ghost-browser-android-debug-apk") | .id' |
+          while read -r artifact_id; do
+            [ -z "$artifact_id" ] && continue
+            echo "Deleting previous APK artifact: $artifact_id"
+            gh api --method DELETE "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$artifact_id"
+          done
+
+      - name: Upload newest Android Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ghost-browser-android-debug-apk
           path: src/out/**/*.apk
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload build manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: ghost-browser-build-manifest
-          path: |
-            src/brave/package.json
-            src/brave/DEPS
           if-no-files-found: error
           retention-days: 1
