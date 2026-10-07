@@ -10,6 +10,16 @@ on:
 
 permissions:
   contents: read
+  actions: write
+
+concurrency:
+  group: ghost-browser-android-foundation
+  cancel-in-progress: true
+
+env:
+  GIT_CACHE_PATH: ${{ runner.temp }}/ghost-git-cache
+  GCLIENT_JOBS: 12
+  OLD_RUN_TO_CANCEL: 37552502468
 
 jobs:
   build:
@@ -17,12 +27,52 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Check out Ghost Browser
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install base build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang curl git lld ninja-build pkg-config python3 python3-pip python3-setuptools python-is-python3 unzip zip
+          sudo apt-get install -y build-essential clang curl git jq lld ninja-build pkg-config python3 python3-pip python3-setuptools python-is-python3 unzip zip
+
+      - name: Cancel previous Chromium initialization
+        run: |
+          set -euo pipefail
+          if [[ "${OLD_RUN_TO_CANCEL}" != "${GITHUB_RUN_ID}" ]]; then
+            code="$(curl -sS -o /dev/null -w '%{http_code}' \
+              -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${OLD_RUN_TO_CANCEL}/cancel")"
+            case "$code" in
+              202|409|404) echo "Previous run cancel request returned HTTP $code." ;;
+              *) echo "Unexpected cancel response: HTTP $code"; exit 1 ;;
+            esac
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Clean old Ghost Browser artifacts
+        run: |
+          set -euo pipefail
+          curl -fsSL             -H 'Accept: application/vnd.github+json'             -H "Authorization: Bearer ${GITHUB_TOKEN}"             -H 'X-GitHub-Api-Version: 2026-03-10'             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" |
+            jq -r '.artifacts[] | select(.name | startswith("ghost-browser-")) | .id' |
+            while read -r artifact_id; do
+              [[ -z "$artifact_id" ]] && continue
+              curl -fsSL -X DELETE                 -H 'Accept: application/vnd.github+json'                 -H "Authorization: Bearer ${GITHUB_TOKEN}"                 -H 'X-GitHub-Api-Version: 2026-03-10'                 "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
+              echo "Deleted artifact $artifact_id"
+            done
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Restore Chromium/Brave Git cache
+        id: chromium-git-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.GIT_CACHE_PATH }}
+          key: ${{ runner.os }}-ghost-browser-chromium-git-v2-${{ hashFiles('scripts/bootstrap.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-ghost-browser-chromium-git-v2-
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -31,7 +81,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           package-manager-cache: false
@@ -51,6 +101,14 @@ jobs:
         run: |
           chmod +x scripts/bootstrap.sh
           ./scripts/bootstrap.sh
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pnpm-store
+          key: ${{ runner.os }}-ghost-browser-pnpm-${{ hashFiles('src/brave/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ghost-browser-pnpm-
 
       - name: Install Chromium Android build dependencies
         working-directory: src/brave
@@ -76,7 +134,7 @@ jobs:
           name: ghost-browser-android-debug-apk
           path: src/brave/src/out/**/*.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload build manifest
         uses: actions/upload-artifact@v4
@@ -86,4 +144,4 @@ jobs:
             src/brave/package.json
             src/brave/DEPS
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
