@@ -76,8 +76,16 @@ jobs:
           chmod +x scripts/bootstrap.sh
           ./scripts/bootstrap.sh
 
+      - name: Verify Chromium workspace
+        run: |
+          set -euo pipefail
+          test -d src
+          test -d src/brave
+          test -f .gclient
+          test -f src/brave/package.json
+          test -f src/build/install-build-deps.sh
+
       - name: Install Chromium Android build dependencies
-        working-directory: src/brave
         run: |
           ./src/build/install-build-deps.sh --android
 
@@ -91,14 +99,14 @@ jobs:
       - name: Verify APK output
         run: |
           set -euo pipefail
-          find src/brave/src/out -type f -name '*.apk' -print
-          test -n "$(find src/brave/src/out -type f -name '*.apk' -print -quit)"
+          find src/out -type f -name '*.apk' -print
+          test -n "$(find src/out -type f -name '*.apk' -print -quit)"
 
       - name: Upload Android Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ghost-browser-android-debug-apk
-          path: src/brave/src/out/**/*.apk
+          path: src/out/**/*.apk
           if-no-files-found: error
           retention-days: 1
 
