@@ -19,6 +19,7 @@ concurrency:
 env:
   GIT_CACHE_PATH: ${{ runner.temp }}/ghost-git-cache
   GCLIENT_JOBS: 12
+  PNPM_STORE_DIR: ${{ runner.temp }}/pnpm-store
   OLD_RUN_TO_CANCEL: 37552502468
 
 jobs:
@@ -74,6 +75,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ghost-browser-chromium-git-v2-
 
+      - name: Restore pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: ${{ runner.os }}-ghost-browser-pnpm-${{ hashFiles('src/brave/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ghost-browser-pnpm-
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -101,14 +110,6 @@ jobs:
         run: |
           chmod +x scripts/bootstrap.sh
           ./scripts/bootstrap.sh
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/pnpm-store
-          key: ${{ runner.os }}-ghost-browser-pnpm-${{ hashFiles('src/brave/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-ghost-browser-pnpm-
 
       - name: Install Chromium Android build dependencies
         working-directory: src/brave
