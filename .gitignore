@@ -1,0 +1,6 @@
+src/brave/
+src/out/
+node_modules/
+*.keystore
+*.jks
+.env.local
