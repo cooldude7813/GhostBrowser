@@ -66,11 +66,10 @@ jobs:
           node --version
           npm --version
 
-      - name: Enable pnpm
+      - name: Enable Corepack
         run: |
           corepack enable
-          corepack prepare pnpm@latest --activate
-          pnpm --version
+          corepack --version
 
       - name: Fetch and initialize Brave/Chromium
         run: |
