@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'scripts/build-debug-apk.sh'
+      - 'scripts/bootstrap.sh'
       - '.github/workflows/build-chromium-android.yml'
 
 permissions:
@@ -33,8 +34,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-          cache-dependency-path: src/brave/package.json
+          package-manager-cache: false
+
+      - name: Verify Node.js
+        run: |
+          node --version
+          npm --version
 
       - name: Enable pnpm
         run: |
