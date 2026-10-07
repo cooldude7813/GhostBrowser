@@ -29,5 +29,23 @@ else
   pnpm run init --target_os=android --target_arch=arm
 fi
 
+# Verify that init/sync produced the documented project layout.
+if [[ ! -d "$ROOT/src/brave" ]]; then
+  echo "brave-core mount missing after init/sync; restoring src/brave..."
+  git clone --depth=1 --filter=blob:none --no-tags \
+    https://github.com/brave/brave-core.git "$ROOT/src/brave"
+  cd "$ROOT/src/brave"
+  corepack enable
+  corepack install
+  pnpm config set store-dir "$PNPM_STORE_DIR"
+  pnpm install --frozen-lockfile --prefer-offline
+  pnpm run sync --target_os=android --target_arch=arm
+fi
+
+test -d "$ROOT/src"
+test -d "$ROOT/src/brave"
+test -f "$ROOT/src/brave/package.json"
+test -f "$ROOT/.gclient"
+
 cd "$ROOT"
 echo "Brave/Chromium Android foundation initialized/synced."
