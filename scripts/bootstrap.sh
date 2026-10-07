@@ -51,6 +51,7 @@ PY
 
 cd src/brave
 corepack enable || true
+pnpm config set store-dir "${PNPM_STORE_DIR:-$ROOT/.pnpm-store}"
 pnpm install
 pnpm run init --target_os=android --target_arch=arm
 
