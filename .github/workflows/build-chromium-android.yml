@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 concurrency:
   group: ghost-browser-android-foundation
@@ -19,12 +18,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    env:
-      GIT_CACHE_PATH: ${{ github.workspace }}/.ghost-git-cache
-      GCLIENT_JOBS: 12
-      PNPM_STORE_DIR: ${{ github.workspace }}/.pnpm-store
-      OLD_RUNS_TO_CANCEL: "37552502468 37558783924 37558809849"
     timeout-minutes: 360
+    env:
+      GIT_CACHE_PATH: .ghost-git-cache
+      PNPM_STORE_DIR: .pnpm-store
+      GCLIENT_JOBS: 12
     steps:
       - name: Check out Ghost Browser
         uses: actions/checkout@v5
@@ -34,43 +32,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang curl git jq lld ninja-build pkg-config python3 python3-pip python3-setuptools python-is-python3 unzip zip
 
-      - name: Cancel previous Chromium initialization
-        run: |
-          set -euo pipefail
-          for run_id in ${OLD_RUNS_TO_CANCEL}; do
-            [[ "$run_id" == "${GITHUB_RUN_ID}" ]] && continue
-            code="$(curl -sS -o /dev/null -w '%{http_code}' \
-              -X POST \
-              -H 'Accept: application/vnd.github+json' \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H 'X-GitHub-Api-Version: 2026-03-10' \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel")"
-            case "$code" in
-              202|409|404) echo "Cancel request for $run_id returned HTTP $code." ;;
-              *) echo "Unexpected cancel response for $run_id: HTTP $code"; exit 1 ;;
-            esac
-          done
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Clean old Ghost Browser artifacts
-        run: |
-          set -euo pipefail
-          curl -fsSL             -H 'Accept: application/vnd.github+json'             -H "Authorization: Bearer ${GITHUB_TOKEN}"             -H 'X-GitHub-Api-Version: 2026-03-10'             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" |
-            jq -r '.artifacts[] | select(.name | startswith("ghost-browser-")) | .id' |
-            while read -r artifact_id; do
-              [[ -z "$artifact_id" ]] && continue
-              curl -fsSL -X DELETE                 -H 'Accept: application/vnd.github+json'                 -H "Authorization: Bearer ${GITHUB_TOKEN}"                 -H 'X-GitHub-Api-Version: 2026-03-10'                 "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
-              echo "Deleted artifact $artifact_id"
-            done
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
       - name: Restore Chromium/Brave Git cache
         id: chromium-git-cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.GIT_CACHE_PATH }}
+          path: .ghost-git-cache
           key: ${{ runner.os }}-ghost-browser-chromium-git-v2-${{ hashFiles('scripts/bootstrap.sh') }}
           restore-keys: |
             ${{ runner.os }}-ghost-browser-chromium-git-v2-
@@ -78,7 +44,7 @@ jobs:
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:
-          path: ${{ env.PNPM_STORE_DIR }}
+          path: .pnpm-store
           key: ${{ runner.os }}-ghost-browser-pnpm-${{ hashFiles('src/brave/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-ghost-browser-pnpm-
