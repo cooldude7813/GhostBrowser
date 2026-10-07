@@ -1,0 +1,56 @@
+name: Fetch Brave Chromium Android Source
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/bootstrap.sh'
+      - '.github/workflows/fetch-brave-chromium.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fetch-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out Ghost Browser
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang curl git lld ninja-build pkg-config python3 python3-pip python3-setuptools python-is-python3 unzip zip
+      - name: Fetch Brave Core and Chromium
+        run: ./scripts/bootstrap.sh
+      - name: Verify source checkout
+        run: |
+          test -d src/brave/.git
+          test -d src/chromium/src
+          test -f src/brave/package.json
+          echo Brave Core commit:
+          git -C src/brave rev-parse HEAD
+          echo Chromium checkout:
+          git -C src/chromium/src rev-parse HEAD
+          echo Fetched real Brave Core + Chromium Android source successfully.
+      - name: Upload source manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-browser-source-manifest
+          path: |
+            src/brave/package.json
+            src/brave/DEPS
+          retention-days: 7
