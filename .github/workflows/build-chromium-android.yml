@@ -22,7 +22,7 @@ jobs:
     env:
       GIT_CACHE_PATH: .ghost-git-cache
       PNPM_STORE_DIR: .pnpm-store
-      GCLIENT_JOBS: 12
+      CHROME_HEADLESS: 1
     steps:
       - name: Check out Ghost Browser
         uses: actions/checkout@v5
@@ -37,17 +37,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ghost-git-cache
-          key: ${{ runner.os }}-ghost-browser-chromium-git-v2-${{ hashFiles('scripts/bootstrap.sh') }}
+          key: \${{ runner.os }}-ghost-browser-chromium-git-v3
           restore-keys: |
-            ${{ runner.os }}-ghost-browser-chromium-git-v2-
+            \${{ runner.os }}-ghost-browser-chromium-git-v3-
 
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:
           path: .pnpm-store
-          key: ${{ runner.os }}-ghost-browser-pnpm-${{ hashFiles('src/brave/pnpm-lock.yaml') }}
+          key: \${{ runner.os }}-ghost-browser-pnpm-v2
           restore-keys: |
-            ${{ runner.os }}-ghost-browser-pnpm-
+            \${{ runner.os }}-ghost-browser-pnpm-v2-
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
