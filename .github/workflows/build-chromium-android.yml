@@ -16,15 +16,14 @@ concurrency:
   group: ghost-browser-android-foundation
   cancel-in-progress: true
 
-env:
-  GIT_CACHE_PATH: ${{ runner.temp }}/ghost-git-cache
-  GCLIENT_JOBS: 12
-  PNPM_STORE_DIR: ${{ runner.temp }}/pnpm-store
-  OLD_RUNS_TO_CANCEL: "37552502468 37558783924 37558809849"
-
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      GIT_CACHE_PATH: ${{ runner.temp }}/ghost-git-cache
+      GCLIENT_JOBS: 12
+      PNPM_STORE_DIR: ${{ runner.temp }}/pnpm-store
+      OLD_RUNS_TO_CANCEL: "37552502468 37558783924 37558809849"
     timeout-minutes: 360
     steps:
       - name: Check out Ghost Browser
