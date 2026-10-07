@@ -20,7 +20,7 @@ env:
   GIT_CACHE_PATH: ${{ runner.temp }}/ghost-git-cache
   GCLIENT_JOBS: 12
   PNPM_STORE_DIR: ${{ runner.temp }}/pnpm-store
-  OLD_RUN_TO_CANCEL: 37552502468
+  OLD_RUNS_TO_CANCEL: "37552502468 37558783924 37558809849"
 
 jobs:
   build:
@@ -38,18 +38,19 @@ jobs:
       - name: Cancel previous Chromium initialization
         run: |
           set -euo pipefail
-          if [[ "${OLD_RUN_TO_CANCEL}" != "${GITHUB_RUN_ID}" ]]; then
+          for run_id in ${OLD_RUNS_TO_CANCEL}; do
+            [[ "$run_id" == "${GITHUB_RUN_ID}" ]] && continue
             code="$(curl -sS -o /dev/null -w '%{http_code}' \
               -X POST \
               -H 'Accept: application/vnd.github+json' \
               -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H 'X-GitHub-Api-Version: 2026-03-10' \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${OLD_RUN_TO_CANCEL}/cancel")"
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel")"
             case "$code" in
-              202|409|404) echo "Previous run cancel request returned HTTP $code." ;;
-              *) echo "Unexpected cancel response: HTTP $code"; exit 1 ;;
+              202|409|404) echo "Cancel request for $run_id returned HTTP $code." ;;
+              *) echo "Unexpected cancel response for $run_id: HTTP $code"; exit 1 ;;
             esac
-          fi
+          done
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
