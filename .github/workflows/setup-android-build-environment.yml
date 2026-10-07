@@ -1,0 +1,73 @@
+name: Ghost Browser Android Build Environment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  environment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack and pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+          pnpm --version
+
+      - name: Verify base tools
+        run: |
+          python3 --version
+          git --version
+          java -version
+          node --version
+
+      - name: Install Chromium/Android build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang curl git lld ninja-build pkg-config python3 python3-pip python3-venv unzip zip
+          if [ -f src/build/install-build-deps.sh ]; then
+            ./src/build/install-build-deps.sh --android
+          else
+            echo "Brave/Chromium source is not present yet; dependency install will run after bootstrap."
+          fi
+
+      - name: Verify Android SDK tools
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME"
+          sdkmanager --version || true
+          adb version || true
+
+      - name: Verify Ghost branding
+        run: |
+          test -f branding/ghost-browser-logo.png
+          test -f branding/generated/ghost_browser_512.png
+          echo "Ghost Browser branding assets are present."
+
+      - name: Environment summary
+        run: |
+          echo "=== Ghost Browser Android build environment ==="
+          echo "JDK: $(java -version 2>&1 | head -n 1)"
+          echo "Node: $(node --version)"
+          echo "pnpm: $(pnpm --version)"
+          echo "Python: $(python3 --version)"
+          echo "Git: $(git --version)"
+          echo "=============================================="
