@@ -1,0 +1,49 @@
+name: Extract Ghost Browser Foundation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract foundation package
+        run: |
+          set -euo pipefail
+          ZIP="GhostBrowser-real-foundation.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "Foundation ZIP already extracted."
+            exit 0
+          fi
+
+          rm -rf /tmp/ghost-foundation
+          mkdir -p /tmp/ghost-foundation
+          unzip -q "$ZIP" -d /tmp/ghost-foundation
+
+          ROOT="/tmp/ghost-foundation/GhostBrowser-real-foundation"
+          test -f "$ROOT/README.md"
+          test -f "$ROOT/branding/ghost-browser-logo.png"
+
+          cp -a "$ROOT"/. .
+          rm -f "$ZIP"
+
+      - name: Commit extracted foundation
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extraction changes needed."
+            exit 0
+          fi
+          git commit -m "Extract Ghost Browser real foundation"
+          git push
